@@ -1,0 +1,3 @@
+drake==1.45.0
+shapely>=2.1      # needs shapely.constrained_delaunay_triangles
+matplotlib        # only for plot_top_down.py
