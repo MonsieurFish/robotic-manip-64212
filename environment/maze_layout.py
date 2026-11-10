@@ -6,7 +6,7 @@ What's on the floor plan:
                  (rectangles, `Rect`)
   - walls      : built automatically around the outline of the open areas
                  (triangles, see `make_walls_around`)
-  - roofs      : covered parts of a corridor (rectangles)
+  - roofs      : covered dead ends of the start and goal corridors (rectangles)
   - the block's footprint at the start and at the goal (rectangles)
 
 Nothing here depends on Drake, so the layout can be checked with plain Python
@@ -62,7 +62,7 @@ class MazeLayout:
 
     open_areas: dict   # name -> Rect   (e.g. "bay", "corridor_A")
     walls: dict        # name -> (3, 2) array of triangle corners (e.g. "wall_00")
-    roofs: dict        # name -> Rect   (e.g. "start_roof")
+    roofs: dict        # name -> Rect   ("start_roof", "goal_roof")
 
     # All open areas merged into one shape. Handy for quick 2D checks,
     # e.g. `layout.open_space.contains(block_footprint.as_polygon())`.
@@ -124,10 +124,14 @@ def make_two_segment_layout(params: EnvironmentParams) -> MazeLayout:
         if not open_space.contains(block.as_polygon()):
             raise ValueError(f"The block's {label} position overlaps a wall.")
 
-    # --- Roof over the dead end of the start corridor ---
+    # --- Roofs over the dead ends of the start and goal corridors ---
     roofs = {}
     if params.start_roof_length > 0:
-        roofs["start_roof"] = roof_over_pocket(bay_center, start_heading, params)
+        roofs["start_roof"] = roof_over_pocket(
+            bay_center, start_heading, params.start_roof_length, params)
+    if params.goal_roof_length > 0:
+        roofs["goal_roof"] = roof_over_pocket(
+            bay_center, goal_heading, params.goal_roof_length, params)
 
     return MazeLayout(
         params=params,
@@ -154,13 +158,14 @@ def block_in_pocket(bay_center, heading, params: EnvironmentParams) -> Rect:
     )
 
 
-def roof_over_pocket(bay_center, heading, params: EnvironmentParams) -> Rect:
-    """Roof covering the last `start_roof_length` of a corridor.
+def roof_over_pocket(bay_center, heading, covered_length,
+                     params: EnvironmentParams) -> Rect:
+    """Roof covering the last `covered_length` of a corridor.
 
     It is wide enough to rest on both side walls, and long enough to also
     cover the dead-end wall.
     """
-    roof_length = params.start_roof_length + params.wall_thickness
+    roof_length = covered_length + params.wall_thickness
     # The roof's far edge lines up with the outside of the dead-end wall.
     far_edge = params.corridor_length + params.wall_thickness
     return Rect(

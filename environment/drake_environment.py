@@ -1,5 +1,5 @@
 """
-Adds the environment (floor, walls, roof, block) to a Drake MultibodyPlant.
+Adds the environment (floor, walls, roofs, block) to a Drake MultibodyPlant.
 
 Typical use:
 
@@ -11,7 +11,7 @@ Typical use:
     # ... later: add the iiwa and gripper to the same plant here ...
     plant.Finalize()
 
-The floor, walls and roof are fixed to the world (they never move) and have
+The floor, walls and roofs are fixed to the world (they never move) and have
 collision geometry, so the robot's collision checks will see them. The block
 is a free body that starts at the start pose.
 """
@@ -62,7 +62,7 @@ BLOCK_MESH_SIZE = 0.01     # m; how finely Drake meshes the soft block internall
 
 
 def rigid_contact_properties() -> ProximityProperties:
-    """For fixed scenery: floor, walls, roof."""
+    """For fixed scenery: floor, walls, roofs."""
     properties = ProximityProperties()
     AddContactMaterial(dissipation=CONTACT_DAMPING, friction=FRICTION, properties=properties)
     AddRigidHydroelasticProperties(properties=properties)

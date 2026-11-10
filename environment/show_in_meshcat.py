@@ -74,6 +74,7 @@ def print_summary(layout):
     print(f"  bay size          : {p.bay_size:.3f} m")
     print(f"  corridor width    : {p.corridor_width:.3f} m")
     print(f"  start roof length : {p.start_roof_length:.3f} m")
+    print(f"  goal roof length  : {p.goal_roof_length:.3f} m")
     print(f"  block starts in   : corridor {p.start_corridor}, "
           f"goal is corridor {p.goal_corridor()}")
     print(f"  wall pieces       : {len(layout.walls)}")

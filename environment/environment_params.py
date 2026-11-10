@@ -11,7 +11,7 @@ by a square "bay" at the corner. Seen from above:
 
                  corridor B
        dead end ┌──────────────────┬──────────┐
-                │  (block goal)        bay    │
+                │░░░░░ (block goal)    bay    │
                 └──────────────────┐          │
                                    └──┐    ┌──┘
                                       │    │
@@ -69,11 +69,13 @@ class EnvironmentParams:
     wall_height: float = 0.08
     wall_thickness: float = 0.02
 
-    # How much of the START corridor is covered by a roof, measured from its
-    # dead end. The roof sits on top of the walls, so the gripper cannot
-    # reach the part of the block underneath it. This limits which grasps
-    # are possible at the start. 0 means no roof.
+    # How much of the START and GOAL corridors is covered by a roof, measured
+    # from each corridor's dead end. A roof sits on top of the walls, so the
+    # gripper cannot reach the part of the block underneath it. This limits
+    # which grasps are possible when picking the block up at the start and
+    # when setting it down at the goal. 0 means no roof.
     start_roof_length: float = 0.12
+    goal_roof_length: float = 0.12
     roof_thickness: float = 0.01
 
     # ------------------------------------------------------------------
@@ -93,7 +95,7 @@ class EnvironmentParams:
     # just lift the block out of the corridor.
     max_block_lift: float = 0.02
 
-    # The roof must leave at least this much of the block uncovered so that
+    # Each roof must leave at least this much of the block uncovered so that
     # some grasp is always possible. (The WSG palm is 7.25 cm long in this
     # direction, plus some margin.)
     min_uncovered_block_length: float = 0.10
@@ -115,9 +117,9 @@ class EnvironmentParams:
     def goal_corridor(self) -> str:
         return "B" if self.start_corridor == "A" else "A"
 
-    def max_start_roof_length(self) -> float:
-        """Longest start roof that still leaves `min_uncovered_block_length`
-        of the block exposed for grasping."""
+    def max_roof_length(self) -> float:
+        """Longest roof (start or goal) that still leaves
+        `min_uncovered_block_length` of the block exposed for grasping."""
         return (self.block_gap_to_dead_end
                 + self.block_length
                 - self.min_uncovered_block_length)
@@ -133,9 +135,12 @@ class EnvironmentParams:
              "start_corridor must be 'A' or 'B'"),
             (0 < self.corner_angle_deg <= 180,
              "corner_angle_deg must be between 0 and 180"),
-            (0 <= self.start_roof_length <= self.max_start_roof_length(),
+            (0 <= self.start_roof_length <= self.max_roof_length(),
              f"start_roof_length must be between 0 and "
-             f"{self.max_start_roof_length():.3f} m, so a grasp stays possible"),
+             f"{self.max_roof_length():.3f} m, so a grasp stays possible"),
+            (0 <= self.goal_roof_length <= self.max_roof_length(),
+             f"goal_roof_length must be between 0 and "
+             f"{self.max_roof_length():.3f} m, so a grasp stays possible"),
         ]
         for is_ok, message in checks:
             if not is_ok:
@@ -146,7 +151,7 @@ class EnvironmentParams:
 # Randomized environments
 # ----------------------------------------------------------------------
 # Ranges for the randomized variables listed in the proposal:
-#   1. roof cover at the start, and the bay size
+#   1. roof cover at the start and goal, and the bay size
 #   2. the corner angle
 #   3. which corridor the block starts in
 BAY_SIZE_RANGE = (0.30, 0.42)       # meters
@@ -161,7 +166,8 @@ def sample_random_params(seed=None) -> EnvironmentParams:
     params.bay_size = rng.uniform(*BAY_SIZE_RANGE)
     params.corner_angle_deg = rng.uniform(*CORNER_ANGLE_RANGE)
     params.start_corridor = str(rng.choice(["A", "B"]))
-    params.start_roof_length = rng.uniform(0.0, params.max_start_roof_length())
+    params.start_roof_length = rng.uniform(0.0, params.max_roof_length())
+    params.goal_roof_length = rng.uniform(0.0, params.max_roof_length())
 
     params.validate()
     return params

@@ -34,8 +34,8 @@ moved. It should be 0.00 mm. A big jump would mean the block started inside a wa
 
 | File | What it does |
 |---|---|
-| `environment_params.py` | **Every number** (block, corridors, bay, walls, roof, placement) in one dataclass, plus `sample_random_params(seed)` for randomized environments. |
-| `maze_layout.py` | Turns the params into a 2D floor plan of named shapes: open areas, walls, roof, block start/goal. No Drake here. |
+| `environment_params.py` | **Every number** (block, corridors, bay, walls, roofs, placement) in one dataclass, plus `sample_random_params(seed)` for randomized environments. |
+| `maze_layout.py` | Turns the params into a 2D floor plan of named shapes: open areas, walls, roofs, block start/goal. No Drake here. |
 | `drake_environment.py` | `add_environment_to_plant(plant, layout)`: adds the floor plan to a Drake `MultibodyPlant` as 3D collision + visual geometry. |
 | `show_in_meshcat.py` | Opens the environment in Drake's 3D viewer. |
 | `plot_top_down.py` | Draws the floor plan from above, like the proposal figures. |
@@ -70,8 +70,9 @@ env.layout.corridor_heading  # {"A": angle, "B": angle}, from bay center toward 
    Drake collision shapes must be convex, so the ring is cut into triangles. Each
    triangle becomes a 3-sided prism. This works for any corner angle and any number
    of corridors, so composed mazes (proposal Fig 2) can reuse it.
-3. **Roof** over the dead end of the start corridor, resting on the wall tops, so the
-   gripper can't reach the covered part of the block.
+3. **Roofs** over the dead ends of both the start and the goal corridor, resting on
+   the wall tops, so the gripper can't reach the covered part of the block when
+   picking it up or setting it down.
 4. **Block** is a free body lying in the start pocket. A see-through green "ghost"
    shows the goal.
 
@@ -83,6 +84,7 @@ Both corridors open back toward the robot.
 | Variable | Range |
 |---|---|
 | Start roof length | 0 to 22 cm (always leaves ≥ 10 cm of block uncovered so a grasp exists) |
+| Goal roof length | 0 to 22 cm, drawn separately from the start roof (same limit) |
 | Bay size | 30–42 cm |
 | Corner angle | 60–150° (below ~60° the two corridors start to merge) |
 | Start corridor | A or B |

@@ -63,7 +63,8 @@ def draw_layout(ax, layout, title=""):
 
 def title_for(params, prefix=""):
     return (f"{prefix}angle {params.corner_angle_deg:.0f}°, bay {params.bay_size * 100:.0f} cm, "
-            f"roof {params.start_roof_length * 100:.0f} cm, start {params.start_corridor}")
+            f"roofs {params.start_roof_length * 100:.0f}/{params.goal_roof_length * 100:.0f} cm "
+            f"(start/goal), start {params.start_corridor}")
 
 
 def main():
