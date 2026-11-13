@@ -197,5 +197,8 @@ def add_block(plant, length, width, height, mass, start_pose) -> RigidBody:
                                     soft_contact_properties())
     plant.RegisterVisualGeometry(block, RigidTransform(), shape, "block_visual", BLOCK_COLOR)
     # Every new simulation context will start with the block here.
-    plant.SetDefaultFreeBodyPose(block, start_pose)
+    # (Newer Drake renamed SetDefaultFreeBodyPose; support both names.)
+    set_default_pose = getattr(plant, "SetDefaultFloatingBaseBodyPose", None) \
+        or plant.SetDefaultFreeBodyPose
+    set_default_pose(block, start_pose)
     return block

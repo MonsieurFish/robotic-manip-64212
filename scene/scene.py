@@ -1,4 +1,7 @@
-"""Show an iiwa next to a table in Meshcat."""
+"""Show an iiwa above the maze environment in Meshcat."""
+
+import sys
+from pathlib import Path
 
 from manipulation.station import LoadScenario, MakeHardwareStation
 from pydrake.all import (
@@ -8,8 +11,16 @@ from pydrake.all import (
     StartMeshcat,
 )
 
+# The maze lives in ../environment, whose modules import each other by bare
+# name (e.g. `from maze_layout import ...`), so put that folder on the path.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "environment"))
+
+from drake_environment import add_environment_to_plant  # noqa: E402
+from environment_params import EnvironmentParams  # noqa: E402
+from maze_layout import make_two_segment_layout  # noqa: E402
+
 ######################################################################
-## The scene: an iiwa, a table
+## The scene: an iiwa with a gripper; the maze is added in build_static_system
 ######################################################################
 
 
@@ -19,7 +30,7 @@ def scenario_yaml() -> str:
     name: iiwa
     file: package://drake_models/iiwa_description/sdf/iiwa7_no_collision.sdf
     default_joint_positions:
-        iiwa_joint_1: [-1.57]
+        iiwa_joint_1: [0]
         iiwa_joint_2: [0.1]
         iiwa_joint_3: [0]
         iiwa_joint_4: [-1.2]
@@ -29,9 +40,10 @@ def scenario_yaml() -> str:
 - add_weld:
     parent: world
     child: iiwa::iiwa_link_0
+# The maze environment assumes the iiwa base at the world origin, facing +x
+# (the maze's bay is at x = 0.58 m).
     X_PC:
-        translation: [0, -0.5, 0]
-        rotation: !Rpy { deg: [0, 0, 180] }
+        translation: [0, 0, 0]
 - add_model:
     name: wsg
     file: package://manipulation/hydro/schunk_wsg_50_with_tip.sdf
@@ -41,17 +53,7 @@ def scenario_yaml() -> str:
     X_PC:
         translation: [0, 0, 0.09]
         rotation: !Rpy { deg: [90, 0, 90] }
-- add_model:
-    name: table
-    file: package://manipulation/table.sdf
-# Weld the table down so it doesn't fall. The table is a 0.1 m thick slab
-# centered on its origin, so lower it by half that to put its top at z = 0,
-# level with the iiwa's base.
-- add_weld:
-    parent: world
-    child: table::table_link
-    X_PC:
-        translation: [0, 0, -0.05]
+# No table: the maze environment brings its own floor, with its top at z = 0.
 
 model_drivers:
     iiwa: !IiwaDriver
@@ -68,12 +70,39 @@ OPENED = 0.05
 ######################################################################
 
 
-def build_static_system(meshcat):
-    """The scene, with the arm held at its default joint positions."""
-    builder = DiagramBuilder()
+def add_station(builder, meshcat, params=None):
+    """Add the hardware station (iiwa + gripper + maze) to `builder`.
+
+    Returns (station, env); `env` holds the maze's block body and its start
+    and goal poses (see environment/drake_environment.py). The station's
+    iiwa.position and wsg.position inputs are left for the caller to connect.
+    """
+    if params is None:
+        params = EnvironmentParams()
+    layout = make_two_segment_layout(params)
+    env_holder = {}
+
+    def add_maze(parser):
+        # Runs inside MakeHardwareStation, just before the plant is finalized.
+        env_holder["env"] = add_environment_to_plant(parser.plant(), layout)
+
     station = builder.AddSystem(
-        MakeHardwareStation(LoadScenario(data=scenario_yaml()), meshcat=meshcat)
+        MakeHardwareStation(
+            LoadScenario(data=scenario_yaml()),
+            meshcat=meshcat,
+            parser_prefinalize_callback=add_maze,
+        )
     )
+    return station, env_holder["env"]
+
+
+def build_static_system(meshcat, params=None):
+    """The scene, with the arm held at its default joint positions.
+
+    Returns (diagram, env).
+    """
+    builder = DiagramBuilder()
+    station, env = add_station(builder, meshcat, params)
     plant = station.GetSubsystemByName("plant")
 
     # The iiwa driver needs a position command; hold the default pose.
@@ -90,7 +119,7 @@ def build_static_system(meshcat):
         hold_fingers.get_output_port(), station.GetInputPort("wsg.position")
     )
 
-    return builder.Build()
+    return builder.Build(), env
 
 
 def show_scene(system, duration: float = 2.0):
@@ -103,7 +132,8 @@ def show_scene(system, duration: float = 2.0):
 
 def main():
     meshcat = StartMeshcat()
-    show_scene(build_static_system(meshcat))
+    system, env = build_static_system(meshcat)
+    show_scene(system)
     input("Press Enter to exit...")
 
 
